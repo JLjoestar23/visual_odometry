@@ -67,9 +67,9 @@ def main():
     print(R)
     print(t)
 
-    # openCV
+    # OpenCV
     num_inliers, R, t, mask_pose = cv.recoverPose(E_cv, pts1, pts0, K)
-    print("\nCV Transformation:")
+    print("\nOpenCV Transformation:")
     print(R)
     print(t)
 
