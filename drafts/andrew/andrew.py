@@ -2,18 +2,18 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import time
 
 data_folder = "dataset/sequences/00"
 
-percent_to_use = 0.25
+percent_to_use = 0.4
 
 num_images = int(percent_to_use * len(os.listdir(f"{data_folder}/image_0")))
 
 # K from calib.txt p0 (left grascale camera)
 K = np.array([[718.856, 0.0, 607.1928], [0.0, 718.856, 185.2157], [0.0, 0.0, 1.0]])
 
-num_kps = 2000
-num_resample_kps = num_kps // 2
+num_resample_kps = 2000
 
 prev_img = cv2.imread(f"{data_folder}/image_0/000000.png", cv2.IMREAD_GRAYSCALE)
 
@@ -36,8 +36,8 @@ def load_poses(folder):
     return np.array(poses)
 
 
-def get_keypoints(orb_detector, img):
-    keypoints = orb_detector.detect(img, None)
+def get_keypoints(detector, img):
+    keypoints = detector.detect(img, None)
 
     prevPts = np.zeros((len(keypoints), 1, 2))
 
@@ -52,14 +52,23 @@ def get_keypoints(orb_detector, img):
 true_poses = load_poses(data_folder)
 prev_true_pose = true_poses[0, 0:3, 3]
 
-orb = cv2.ORB_create(nfeatures=num_kps)
-prev_kps = get_keypoints(orb, prev_img)
+# orb = cv2.ORB_create(nfeatures=num_kps)
+fast = cv2.FastFeatureDetector_create(threshold=20)
+prev_kps = get_keypoints(fast, prev_img)
 
 positions = np.zeros((num_images, 3, 1))
 rotations = np.zeros((num_images, 3, 3))
 rotations[0] = np.eye(3)
 
+plt.ion()
+fig, ax = plt.subplots()
+(line,) = ax.plot([], [], "b-")
+ax.set_xlim(left=-300, right=200)
+ax.set_ylim(bottom=-50, top=400)
+
 for i in range(1, num_images):
+    if i == 3:
+        time.sleep(10)
 
     if i % 10 == 0:
         print(f"On {i} / {num_images}")
@@ -67,37 +76,34 @@ for i in range(1, num_images):
     im_num = (6 - len(str(i))) * "0" + str(i)
     # Load consecutive grayscale frames
     next_img = cv2.imread(f"{data_folder}/image_0/{im_num}.png", cv2.IMREAD_GRAYSCALE)
+    cv2.imshow("window", next_img)
+    if cv2.waitKey(1) & 0xFF == ord("q"):  # press q to quit
+        break
 
     # Compute optical flow
     next_kps, status, err = cv2.calcOpticalFlowPyrLK(prev_img, next_img, prev_kps, None)
 
-    # Keep only valid points
-    prev_kps = prev_kps[status == 1]
-    next_kps = next_kps[status == 1]
+    status = status.ravel().astype(bool)
+    prev_kps = prev_kps[status]  # shape (M,1,2)
+    next_kps = next_kps[status]
 
     E, mask = cv2.findEssentialMat(
         next_kps, prev_kps, K, cv2.RANSAC, prob=0.999, threshold=1.0
     )
 
-    num_inliers, R, t, mask_pose = cv2.recoverPose(E, next_kps, prev_kps, K)
+    inl = mask.ravel().astype(bool)
+    next_kps = next_kps[inl]
+    prev_kps = prev_kps[inl]
 
-    inliers = mask_pose == 1
-    next_kps = next_kps[inliers[:, 0]]
-    prev_kps = prev_kps[inliers[:, 0]]
+    num_inliers, R, t, mask_pose = cv2.recoverPose(E, next_kps, prev_kps, K)
 
     next_true_pose = true_poses[i, 0:3, 3]
     scale = np.sqrt(np.sum(np.square(np.abs(next_true_pose - prev_true_pose))))
 
-    if scale < 0.15:
+    if scale < 0.1:
         print(f"Frame {i}, scale {scale}")
 
-    if scale > 0.15 and abs(t[2]) > abs(t[1]) and abs(t[2]) > abs(t[0]):
-        # yaw = np.arctan2(R[0, 2], R[2, 2])
-
-        # if abs(yaw) > 0.12:
-        #     print(f"Frame {i}, Yaw too high {yaw}")
-
-        # if scale > 0.15 and abs(yaw) < 0.08:  #  and
+    if scale > 0.1 and abs(t[2]) > abs(t[1]) and abs(t[2]) > abs(t[0]):
         rotations[i] = R @ rotations[i - 1]
         positions[i] = positions[i - 1] + scale * (
             rotations[i - 1] @ t
@@ -106,15 +112,22 @@ for i in range(1, num_images):
         rotations[i] = rotations[i - 1]
         positions[i] = positions[i - 1]
 
-    if next_kps.shape[0] < num_resample_kps:
-        prev_kps = get_keypoints(orb, next_img)
-    else:
-        prev_kps = next_kps.reshape(-1, 1, 2)
+    line.set_data(positions[:i, 0, 0], positions[:i, 2, 0])
+    plt.draw()
+    plt.pause(0.01)
+
+    prev_kps = next_kps.reshape(-1, 1, 2)
+
+    if prev_kps.shape[0] < num_resample_kps:
+        prev_kps = get_keypoints(fast, next_img)
+        # print("Getting new keypoints")
+    # else:
+    #     print("Keeping old ones")
 
     prev_img = next_img
     prev_true_pose = next_true_pose
 
-
+plt.ioff()
 plt.plot(positions[:, 0, 0], positions[:, 2, 0])
 plt.plot(true_poses[:num_images, 0, 3], true_poses[:num_images, 2, 3])
 plt.xlabel("X (m)")
