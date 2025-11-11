@@ -1,12 +1,14 @@
 import numpy as np
 
-def findEssentialMat(pts0, pts1, K):
+
+def find_essential_mat(pts0, pts1, K):
     """
     Calculate the Essential Matrix based on correspondences bewteen 2 images.
-    
+
     Args:
         pts0: 2xn numpy array of keypoints from image 0
         pts1: 2xn numpy array of keypoints from image 1
+        K: 3x3 numpy camera calibration matrix
 
     Returns:
         E_final: 3x3 numpy array of the essential matrix
@@ -40,19 +42,20 @@ def findEssentialMat(pts0, pts1, K):
     # enforce rank 2 by setting smallest singular value to 0
     S[2] = 0
     # reconstruct E with rank 2 constraint
-    E_rank2 = U @ np.diag(S) @ Vt
+    e_rank2 = U @ np.diag(S) @ Vt
 
     # undo pre-conditioning
-    E_final = T0.T @ E_rank2 @ T1
+    e_final = T0.T @ e_rank2 @ T1
 
     # normalize
-    E_final /= np.linalg.norm(E_final)
+    e_final /= np.linalg.norm(e_final)
 
     # ensure consistent sign (make E[2,2] positive if possible)
-    if E_final[2, 2] < 0:
-        E_final = -E_final
+    if e_final[2, 2] < 0:
+        e_final = -e_final
 
-    return E_final
+    return e_final
+
 
 def normalize_pts(pts, K):
     """
@@ -73,6 +76,7 @@ def normalize_pts(pts, K):
 
     return pts_norm
 
+
 def precondition_pts(pts_norm):
     """
     Translate centroid of the keypoints to the camera plane origin and scale so
@@ -87,24 +91,25 @@ def precondition_pts(pts_norm):
     """
     # use only x, y coordinates
     pts_xy = pts_norm[:, :2] if pts_norm.shape[1] > 2 else pts_norm
-    
+
     centroid = np.mean(pts_xy, axis=0)
     scale = np.sqrt(2) / np.mean(np.linalg.norm(pts_xy - centroid, axis=1))
-    
-    T = np.array([[scale, 0, -scale * centroid[0]],
-                  [0, scale, -scale * centroid[1]],
-                  [0, 0, 1]])
-    
+
+    T = np.array(
+        [[scale, 0, -scale * centroid[0]], [0, scale, -scale * centroid[1]], [0, 0, 1]]
+    )
+
     # apply transformation to homogeneous coordinates
     pts_homo = np.hstack((pts_xy, np.ones((len(pts_xy), 1))))
     pts_cond = (T @ pts_homo.T).T
-    
+
     return pts_cond, T
+
 
 def construct_costraint_mat(pts0, pts1):
     """
     Constructs the A matrix for the 8-point constraint problem.
-    
+
     Args:
         pts0: 2xn numpy array of pre-conditioned keypoints from image 0
         pts1: 2xn numpy array of pre-conditioned keypoints from image 1
@@ -117,14 +122,15 @@ def construct_costraint_mat(pts0, pts1):
     for i in range(pts1.shape[0]):
         x1, y1, _ = pts1[i]
         x0, y0, _ = pts0[i]
-        A.append([x0*x1, x0*y1, x0, y0*x1, y0*y1, y0, x1, y1, 1])
-    
+        A.append([x0 * x1, x0 * y1, x0, y0 * x1, y0 * y1, y0, x1, y1, 1])
+
     return np.array(A)
+
 
 def test_epipolar_constraint(E, pts0, pts1, K):
     """
     Test how well the essential matrix satisfies the epipolar constraint.
-    
+
     Args:
         E: nx9 numpy array essential matrix calculated from pts0 and pts1
         pts0: 2xn numpy array of keypoints from image 0
@@ -133,15 +139,15 @@ def test_epipolar_constraint(E, pts0, pts1, K):
     """
     pts0_norm = normalize_pts(pts0, K)
     pts1_norm = normalize_pts(pts1, K)
-    
+
     # convert to homogeneous
     pts0_homo = np.hstack((pts0_norm, np.ones((pts0_norm.shape[0], 1))))
     pts1_homo = np.hstack((pts1_norm, np.ones((pts1_norm.shape[0], 1))))
-    
+
     errors = []
     for i in range(len(pts0_homo)):
         error = pts1_homo[i] @ E @ pts0_homo[i]
         errors.append(abs(error))
-    
+
     print(f"Mean epipolar error: {np.mean(errors):.6f}")
     print(f"Max epipolar error: {np.max(errors):.6f}")
