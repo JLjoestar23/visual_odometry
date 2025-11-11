@@ -1,3 +1,7 @@
+"""
+Module with functions to calculate the essential matrix
+"""
+
 import numpy as np
 
 
