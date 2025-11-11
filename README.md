@@ -89,10 +89,26 @@ $$t_i = t_{i-1} + R_{i-1}t_e$$
 
 ## Conclusion
 
-### Limitations
+### Limitations and Future Work
 
-### Lessons
+As discussed above, the main limitation of solely relying on the essential matrix for visual odometry is losing scale of the translations. If we had more time, we would explore the techniques to recover scale. One of the main ones is triangulation with a global map. This creates a point cloud of the surroundings from the images, where the entire map is accurate up to a scalar. If there is an object of known size at a single point, the entire global scale of the map can be calculated. An alternative method is using stereo vision, which is where you have two cameras a fixed distance apart. This allows you to triangulate the exact depth, and therefore scale.
 
-### Future Work
+JOJO ADD ESSENTIAL MATRIX CALCULATION LIMITATIONS
+
+### Challenges and Lessons
+
+One of the main lessons from this project was how to approach learning about a complex topic that we have little experience with. It was challenging to first get our feet under us because we needed resources that were a middle ground of being technically rigorous, but accessible. Additionally, there are many different approaches and design decisions in visual odometry, so it was confusing to bounce between resources. To resolve this, we eventually found one resource was that accessible, and technically rigerous enough to get started. Then, after working from this one, we developed a strong enough core understanding to filter new resources to fill in the gaps. 
+
+JOJO ADD YOUR CHALLENGES AND LESSONS
 
 ## Sources
+
+[Avi Singh's Blog](https://avisingh599.github.io/vision/monocular-vo/) - This was the resource that balanced accessibility and rigor to get started
+
+[OpenCV Documentation](https://docs.opencv.org/4.x/) - Used to figure out how to use OpenCV functions
+
+[Stanford CS231a on Camera Models](https://web.stanford.edu/class/cs231a/course_notes/01-camera-models.pdf) - Useful to understand the basics of how cameras work
+
+[Stanford CS231a on Epipolar Geometry](https://web.stanford.edu/class/cs231a/course_notes/03-epipolar-geometry.pdf) - Helped understand basics of epipolar geometry
+
+[William Hoff's CV Playlist](https://www.youtube.com/playlist?list=PL4B3F8D4A5CAD8DA3) - Watched lectures 23-1 and 23-2 to understand math of epipolar geometry
