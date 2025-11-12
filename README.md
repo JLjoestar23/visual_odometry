@@ -225,19 +225,29 @@ From comparing the transformation results, which are all very similar to each ot
 
 The second test we performed was on the KITTI data set, which is the data shown in the demo above. To visualize results, we plotted a 2D overhead view of the ground truth trajectory alongside the estimated trajectory based on visual odometry. The results are shown below:
 
+<p align="center">
+  <img src="./assets/KITTI_compariosn">
+</p>
+
+With real data, our implementation performed really poorly, especially compared to OpenCV's methods of calculating $$\mathbf{E}$$. A further explanation on why it performed so poorly is in the "Limiteed and Future Work Section".
+
 ## Conclusion
 
 ### Limitations and Future Work
 
 As discussed above, the main limitation of solely relying on the essential matrix for visual odometry is losing scale of the translations. If we had more time, we would explore the techniques to recover scale. One of the main ones is triangulation with a global map. This creates a point cloud of the surroundings from the images, where the entire map is accurate up to a scalar. If there is an object of known size at a single point, the entire global scale of the map can be calculated. An alternative method is using stereo vision, which is where you have two cameras a fixed distance apart. This allows you to triangulate the exact depth, and therefore scale.
 
-JOJO ADD ESSENTIAL MATRIX CALCULATION LIMITATIONS
+Regarding our `find_essential_mat()` implementation, while mathematically based on the classical eight-point algorithm, underperforms compared to OpenCV’s highly optimized `cv.findEssentialMat()` due to a few major limitations in both robustness and numerical stability. 
+
+The custom approach assumes perfect feature correspondences and performs a single linear least-squares solve of the constraint matrix $$A\mathbf{e} = 0$$, making it highly sensitive to noise, pixel quantization, and outliers in feature matches. In contrast, OpenCV’s implementation employs the **five-point algorithm within a RANSAC framework**, repeatedly sampling minimal subsets to reject spurious correspondences and minimize the **Sampson geometric error**, ensuring greater resilience to measurement noise.
+
+Future work would involve implementing the RANSAC logic (alongside other small bits mentioned above) and searching for other possible methods in order to make our implementation more robust.
 
 ### Challenges and Lessons
 
 One of the main lessons from this project was how to approach learning about a complex topic that we have little experience with. It was challenging to first get our feet under us because we needed resources that were a middle ground of being technically rigorous, but accessible. Additionally, there are many different approaches and design decisions in visual odometry, so it was confusing to bounce between resources. To resolve this, we eventually found one resource was that accessible, and technically rigerous enough to get started. Then, after working from this one, we developed a strong enough core understanding to filter new resources to fill in the gaps. 
 
-JOJO ADD YOUR CHALLENGES AND LESSONS
+Another challenge from this lesson was understanding the different conventions that different sources used. There were many hours spent attempting to debug small mathematical errors resulting from our code. For example, one of the largest time sinks was trying to debug why our $$\mathbf{E_{my}}$$ was seemingly transposed when compared to $$\mathbf{E_{cv}}$$, which resulted in incorrectly recovered poses using OpenCV's `cv.recoverPose()`. The root cause of this issue ended up being how I structured the constraint matrix $$A$$, where from utilizing different resources, I accidentally mixed-up different conventions and structured it incorrectly according to how OpenCV handles keypoint inputs. The important takeaway is to make sure you clearly understand the different conventions between resources and make sure you closely follow the one that popular libraries utilize.
 
 ## Sources
 
