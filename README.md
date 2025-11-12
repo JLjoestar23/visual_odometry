@@ -153,9 +153,77 @@ where the best solution approximation for $$\mathbf{e}$$ is the right-most colum
 
 Once $$\mathbf{e}$$ is solved for, the next step is to reshape it back into the 3x3 matrix $$\mathbf{E}$$. The last major step is to enforce a rank 2 constraint on $$\mathbf{E}$$, since $$\mathbf{E} = [T]\_{\times} R$$, where $$[T]\_{\times}$$ is rank 2. This can be done through performing SVD on $$\mathbf{E}$$ and setting its smallest singular value to 0, then reconstructing it through multiplying $$U$$, the modified $$\Sigma$$, and $$V^T$$ together. Once $$\mathbf{E}$$ is finalized, rotation and translation can be recovered from it.
 
-### Testing Our Custom Implementation
+### Testing Our Custom Implementation and Comparison to OpenCV
+The first test we performed was with generated keypoints that created the shape of a cube at an angle. The figure below displays the 2 different perspectives:
 
-### Comparison to OpenCV Implementation
+<p align="center">
+  <img src="./assets/comparison.png">
+</p>
+
+Working with generated data allowed us to compare our implementation's calculated $$\mathbf{E_{my}}$$ to a ground truth $$\mathbf{E_{truth}}$$, since it was possible to directly calculate $$\mathbf{E_{truth}}$$ from the generated data. The comparison results are displayed below:
+
+$$
+\mathbf{E_{truth}} = \begin{bmatrix}
+0 & -1 & 0 \\
+-0.3615 & 0 & -3.1415 \\
+0 & 3 & 0
+\end{bmatrix}, 
+\mathbf{E_{my}} = \begin{bmatrix}
+0 & 0.2273 & -0.0002 \\
+0.0822 & 0 & 0.6918 \\
+0 & -0.6804 & 0.001
+\end{bmatrix},
+\mathbf{E_{cv}} = \begin{bmatrix}
+0 & 0.2236 & 0 \\
+0.0808 & 0 & 0.7025 \\
+0 & -0.6708 & 0
+\end{bmatrix},
+$$
+
+From the results, its clear that $$\mathbf{E_{my}}$$ is very similar to $$\mathbf{E_{cv}}$$. However, at a quick glance, neither of these seem to line up with $$\mathbf{E_{truth}}$$. But recall earlier that $$\mathbf{E}$$ can only be calculated up to a scale, so a closer look reveals that $$\mathbf{E_{truth}}$$ is just a scaled $$\mathbf{E_{my}}$$. A more interesting comparison of results would be comparing the recovered transformations from each calculated $$\mathbf{E}$$.
+
+$$
+\mathbf{R_{truth}} = \begin{bmatrix}
+0.9063 & 0 & -0.4226 \\
+0 & 1 & 0 \\
+0.4226 & 0 & 0.9063
+\end{bmatrix}, 
+\mathbf{t_{truth}} = \begin{bmatrix}
+0.9487 \\
+0 \\
+0.3162
+\end{bmatrix}
+$$
+
+$$
+\mathbf{R_{my}} = \begin{bmatrix}
+0.9045 & -0.0001 & -0.4266 \\
+-0.0002 & 1 & -0.0007 \\
+0.4266 & 0.0007 & 0.9045
+\end{bmatrix}, 
+\mathbf{t_{my}} = \begin{bmatrix}
+0.9485 \\
+-0.0002 \\
+0.3169
+\end{bmatrix}
+$$
+
+$$
+\mathbf{R_{cv}} = \begin{bmatrix}
+0.9063 & 0 & -0.4226 \\
+0 & 1 & 0 \\
+0.4226 & 0.0007 & 0.9063
+\end{bmatrix}, 
+\mathbf{t_{cv}} = \begin{bmatrix}
+0.9487 \\
+0 \\
+0.3162
+\end{bmatrix}
+$$
+
+From comparing the transformation results, which are all very similar to each other, it is clear that in this test case, our implementation of calcualting $$\mathbf{E}$$ works.
+
+The second test we performed was on the KITTI data set, which is the data shown in the demo above. To visualize results, we plotted a 2D overhead view of the ground truth trajectory alongside the estimated trajectory based on visual odometry. The results are shown below:
 
 ## Conclusion
 
