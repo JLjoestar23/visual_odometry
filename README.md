@@ -229,7 +229,7 @@ The second test we performed was on the KITTI data set, which is the data shown 
   <img src="./assets/KITTI_comparison.png">
 </p>
 
-With real data, our implementation performed really poorly, especially compared to OpenCV's methods of calculating $$\mathbf{E}$$. A further explanation on why it performed so poorly is in the "Limiteed and Future Work Section".
+With real data, our implementation performed really poorly, especially compared to OpenCV's methods of calculating $$\mathbf{E}$$. A further explanation on why it performed so poorly is in the "Limitations and Future Work Section".
 
 ## Conclusion
 
