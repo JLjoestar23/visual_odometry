@@ -226,7 +226,7 @@ From comparing the transformation results, which are all very similar to each ot
 The second test we performed was on the KITTI data set, which is the data shown in the demo above. To visualize results, we plotted a 2D overhead view of the ground truth trajectory alongside the estimated trajectory based on visual odometry. The results are shown below:
 
 <p align="center">
-  <img src="./assets/KITTI_compariosn">
+  <img src="./assets/KITTI_comparison">
 </p>
 
 With real data, our implementation performed really poorly, especially compared to OpenCV's methods of calculating $$\mathbf{E}$$. A further explanation on why it performed so poorly is in the "Limiteed and Future Work Section".
