@@ -79,11 +79,81 @@ To update the current position (time i) of the robot relative to the initializat
 $$R_i = R_e R_{i-1}$$
 $$t_i = t_{i-1} + R_{i-1}t_e$$
 
-## Calculating Essential Matrix
+## Epipolar Geometry and the Essential Matrix
 
 ### Math
+The concept of the **Essential Matrix** can be constructed from geometrical constraints. Reference the diagram below:
 
-### Custom Implementation
+<p align="center">
+  <img src="./assets/epipolar_geometry_diagram.png" width="600" alt="Demo">
+</p>
+
+Point $$P$$ represents a detected keypoint in an arbitrary world-frame, and is projected onto the **left image plane** as point $$p_0$$ through a “light-ray” that intersects the left camera’s center $$C_0$$ that lies behind the center of the image plane. Now focusing on the **right image plane**, even if we do not know the exact distance $$P$$ is from $$C_0$$, since $$P$$ is along the ray, the projection of $$P$$ onto the **right image plane** must lie along the **epipolar line**. This provides the most important geometrical constraint towards formulating the **Essential Matrix**: the camera centers ($$C_0$$, $$C_1$$), the keypoints projections ($$p_0$$, $$p_1$$), and the keypoint $$P$$ all must lie within the same plane, which is defined as the **epipolar plane**.
+
+To define this mathematically, in order for 3 vectors to be co-planar, they must satisfy the following relationship: $$a \cdot (b \times c) = 0$$. To apply this in the case above, $$p_0$$ and $$p_1$$ can be defined as a 3 element vector $$\mathbf{p} = [x, y, 1]^T$$ with respect to their camera frames, where $$x$$ and $$y$$ represent normalized pixel coordinates and $$z = 1$$ represents a dimensionless focal length. Converting a pixel coordinate into $$\mathbf{p}$$ can be done through multiplication with a camera calibration matrix. Substituting in values to the constraint, $$a = \mathbf{p_0}$$, $$b = \bf{t}$$ represents the translation of the camera from $$C_1$$ to $$C_0$$, and $$c = \mathbf{R{p_1}}$$ where $$\mathbf{R}$$ represents the rotation from $$C_1$$ to $$C_0$$, and thus $$\mathbf{R{p_1}}$$ represents $$\mathbf{p_1}$$ in $$C_0$$’s frame. This results in the following formulation: 
+
+$$
+\mathbf{p_0^T} [T]\_{\times} R \mathbf{p_1} = 0
+$$
+
+where $$[T]\_{\times}$$ is the 3x3 skew asymmetric matrix representing the corresponding cross product. This allows for further simplification to:
+
+$$
+\mathbf{p_0^T E p_1} = 0
+$$
+
+where $$\mathbf{E}$$, the **Essential Matrix**, relates the image of a point in one camera to its image in another camera, given a translation and rotation. Essentially (no pun intended), it encodes the transformation from the perspective of $$C_1$$ to $$C_0$$ given the same image scene. Once we solve for $$\mathbf{E}$$, we can reconstruct motion between 2 image frames.
+
+To solve for $$\mathbf{E}$$, the first step is expanding the above:
+
+$$
+\begin{bmatrix}
+x_0 & y_0 & 1
+\end{bmatrix} 
+\begin{bmatrix}
+E_{11} & E_{12} & E_{13} \\
+E_{21} & E_{22} & E_{23} \\
+E_{31} & E_{32} & E_{33}
+\end{bmatrix}
+\begin{bmatrix}
+x_1 \\
+y_1 \\ 
+1
+\end{bmatrix} = 0
+$$
+
+Which then can be re-strucutred as a homogeneous system of equations $$A\mathbf{e} = 0$$
+
+$$
+\begin{bmatrix}
+x_1^1 x_0^1 & x_1^1 y_0^1 & x_1^1 & y_1^1 x_0^1 & y_1^1 y_0^1 & y_0^1 & x_1^1 & y_1^1 & 1 \\
+x_1^2 x_0^2 & x_1^2 y_0^2 & x_1^2 & y_1^2 x_0^2 & y_1^2 y_0^2 & y_0^2 & x_1^2 & y_1^2 & 1 \\
+x_1^3 x_0^3 & x_1^3 y_0^3 & x_1^3 & y_1^3 x_0^3 & y_1^3 y_0^3 & y_0^3 & x_1^3 & y_1^3 & 1 \\
+\vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots\\ 
+x_1^N x_0^N & x_1^N y_0^N & x_1^N & y_1^N x_0^N & y_1^N y_0^N & y_0^N & x_1^N & y_1^N & 1 \\
+\end{bmatrix} 
+\begin{bmatrix}
+E_{11} \\
+E_{12} \\
+E_{13} \\
+\vdots \\
+E_{33}
+\end{bmatrix} = 0
+$$
+
+Where $$A$$ is the constraint matrix with each row representing a keypoint correspondance between the 2 frames and $$\mathbf{e}$$ is a vectorized $$\mathbf{E}$$. However, because $$\mathbf{e}$$ is part of a homogeneous system of equations, it can only be defined up to scale (more on this in the limitations section). Since it is not possible to determine the scale of the solution, this removes a degree of freedom from the constraints, decreasing the necessary keypoint correspondences from 9 (size of to $$\mathbf{e}$$) 8. This means the size of $$\mathbf{E}$$ must be at least 8x9.
+
+With real data, being able to solve $$A\mathbf{e} = 0$$ directly is unlikely. Instead, solving the least squares problem $$\min_{\lvert \mathbf{e} \rvert=1} \lvert A\mathbf{e} \rvert ^2$$ yields a strong approximation for $$\mathbf{e}$$. Using Langrange multipliers yields $$A^TA = \lambda\mathbf{e}$$, where minimizing the eigenvalue gives the best approximation for $$\mathbf{e}$$. This means the eigenvector corresponding to the smallest eigenvalue is the best solution approximation. However, computing eigenvectors of the squared matrix $$A^TA$$ may be numerically unstable, so instead it is best practice to solve for $$\mathbf{e}$$ using SVD. The problem is then structured as such:
+
+$$
+A = U \Sigma V^T
+$$
+
+where the best solution approximation for $$\mathbf{e}$$ is the right-most column vector of $$V$$, which corresponds with the smallest singular value. By minimizing the singular value in this case, this minimzes the algebraic residue of $$A\mathbf{e} = 0$$. 
+
+Once $$\mathbf{e}$$ is solved for, the next step is to reshape it back into the 3x3 matrix $$\mathbf{E}$$. The last major step is to enforce a rank 2 constraint on $$\mathbf{E}$$, since $$\mathbf{E} = [T]\_{\times} R$$, where $$[T]\_{\times}$$ is rank 2. This can be done through performing SVD on $$\mathbf{E}$$ and setting its smallest singular value to 0, then reconstructing it through multiplying $$U$$, the modified $$\Sigma$$, and $$V^T$$ together. Once $$\mathbf{E}$$ is finalized, rotation and translation can be recovered from it.
+
+### Testing Our Custom Implementation
 
 ### Comparison to OpenCV Implementation
 
